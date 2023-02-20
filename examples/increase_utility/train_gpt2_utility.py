@@ -17,7 +17,7 @@ def load_model(model: str, load_path: str):
 
 def get_scores(samples: List[str])-> torch.tensor:
     scores_list = []
-    batch_size = 2
+    batch_size = config.train.batch_size
     for i in range(0, len(samples), batch_size):
         sub_samples = samples[i : i + batch_size]
         # sub_samples = ["<|startoftext|>" + chosen + "<|endoftext|>" for chosen in sub_samples]
@@ -30,12 +30,9 @@ def get_scores(samples: List[str])-> torch.tensor:
         )
         input_ids = encodings_dict["input_ids"].to(rw_device)
         attn_masks = encodings_dict["attention_mask"].to(rw_device)
-        input_ids = input_ids.repeat(2, 1)
-        attn_masks = attn_masks.repeat(2, 1)
         with torch.no_grad():
-            sub_scores = rw_model(input_ids=input_ids, attention_mask=attn_masks).logits
-            reshaped = sub_scores[:2].reshape(2)
-        scores_list.append(reshaped)
+            sub_scores = rw_model(input_ids=input_ids, attention_mask=attn_masks).logits.reshape((-1))
+        scores_list.append(sub_scores)
     scores = torch.cat(scores_list, dim=0)
     return scores
 
@@ -69,7 +66,7 @@ if __name__ == "__main__":
     rw_tokenizer = AutoTokenizer.from_pretrained(args.model)
     # rw_tokenizer.pad_token = rw_tokenizer.eos_token
     rw_model = load_model(args.model, args.reward_checkpoint_path)
-    rw_device = torch.device("cuda:{}".format(0)) 
+    rw_device = torch.device("cuda") 
     rw_model.to(rw_device)
     print("loaded reward model")
 
