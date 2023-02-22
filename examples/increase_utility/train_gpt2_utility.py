@@ -20,7 +20,6 @@ def get_scores(samples: List[str])-> torch.tensor:
     batch_size = config.train.batch_size
     for i in range(0, len(samples), batch_size):
         sub_samples = samples[i : i + batch_size]
-        # sub_samples = ["<|startoftext|>" + chosen + "<|endoftext|>" for chosen in sub_samples]
         encodings_dict = rw_tokenizer(
             sub_samples,
             truncation=True,
@@ -59,8 +58,8 @@ def reward_fn(samples: List[str], prompts: List[str], outputs: List[str]) -> tor
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default="roberta-large", help="base reward model")
-    parser.add_argument("--dataset_path", type=str, default="utility_dataset.hf", help="path to load HuggingFace dataset of continuation pairs")
-    parser.add_argument("--reward_checkpoint_path", type=str, default="reward_model/util_roberta-large.pt", help="path to load reward model weights")
+    parser.add_argument("--dataset_path", type=str, default="data/utility_dataset.hf", help="path to load HuggingFace dataset of continuation pairs")
+    parser.add_argument("--reward_checkpoint_path", type=str, default="models/reward/util_roberta-large.pt", help="path to load reward model weights")
     args = parser.parse_args()
     
     rw_tokenizer = AutoTokenizer.from_pretrained(args.model)

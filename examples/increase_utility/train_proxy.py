@@ -7,6 +7,7 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification, \
 from datasets import Dataset, DatasetDict
 from utils import get_scores
 import pdb
+# import GPUtil
 
 """
 1. Load gold model and tokenizer
@@ -26,7 +27,7 @@ def load_model(model_name: str, device: torch.device, checkpoint: str = None) ->
 
     # Load pretrained checkpoint if available
     if checkpoint:
-        model.load_state_dict(torch.load(checkpoint), strict=False)
+        model.load_state_dict(torch.load(checkpoint, map_location="cpu"), strict=False)
 
     return model
 
@@ -43,13 +44,17 @@ def load_scenarios(load_data_path: str):
     return scenarios
 
 
-def create_dataset(scenarios: List[str], scores: torch.Tensor) -> Dataset:
-    pdb.set_trace()
-    df = pd.DataFrame({"scenario": scenarios, "score": scores.detach().cpu().numpy()})
+def tokenize_dataset(dataset: DatasetDict, tokenizer: AutoTokenizer, device: torch.device) -> DatasetDict:
+    return tokenizer(dataset["text"], padding="max_length", truncation=True, return_tensors="pt").to(device)
+
+
+def create_dataset(scenarios: List[str], scores: torch.Tensor, tokenizer: AutoTokenizer, device: torch.device) -> Dataset:
+    df = pd.DataFrame({"text": scenarios, "label": scores.detach().cpu().numpy()})
     dataset = DatasetDict({"train": Dataset.from_pandas(df, preserve_index=False)})
+    tokenized_dataset = dataset.map(tokenize_dataset, batched=True, fn_kwargs={"tokenizer": tokenizer, "device": device})
     # TODO: Save another split of this data for evaluation. 
     # TODO: Should we save this to disk or just train the proxy model? 
-    return dataset
+    return tokenized_dataset
 
 
 def compute_metrics(eval_pred):
@@ -71,6 +76,7 @@ if __name__=="__main__":
 
     # Load pretrained base for proxy model 
     proxy_model_name = "roberta-large"
+    # proxy_model_name = "smallbenchnlp/roberta-small"
     proxy_device = torch.device("cuda:2")
     proxy_model = load_model(proxy_model_name, proxy_device)
     proxy_tokenizer = load_tokenizer(proxy_model_name)
@@ -83,13 +89,21 @@ if __name__=="__main__":
     scores = get_scores(scenarios, gold_device, gold_tokenizer, gold_model)
 
     # Create Hugging Face dataset
-    train_dataset = create_dataset(scenarios, scores)['train']
-
+    train_dataset = create_dataset(scenarios, scores, proxy_tokenizer, proxy_device)['train']
+    # TODO: Which device is this dataset on? Are we safe? 
+    
+    print()
+    print()
+    print("beginning training")
+    print()
+    print()
+        
     # Train proxy model
     training_args = TrainingArguments(
         output_dir="proxy_trainer", 
         evaluation_strategy="no", 
-        remove_unused_columns=False
+        remove_unused_columns=False,
+        per_device_train_batch_size=1
     )
     trainer = Trainer(
         model=proxy_model,
@@ -99,3 +113,4 @@ if __name__=="__main__":
     trainer.train()
 
     # TODO: Evaluate proxy model
+    print("done")
