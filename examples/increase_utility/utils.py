@@ -19,14 +19,12 @@ def get_scores(
         encodings_dict = tokenizer(
             sub_samples,
             truncation=True,
-            max_length=max_length, # Different, but I think I'm right. 
+            max_length=max_length, 
             padding=True,
             return_tensors="pt",
         )
         input_ids = encodings_dict["input_ids"].to(device)
         attn_masks = encodings_dict["attention_mask"].to(device)
-        input_ids = input_ids.repeat(2, 1)
-        attn_masks = attn_masks.repeat(2, 1)
         with torch.no_grad():
             output = model(input_ids=input_ids, attention_mask=attn_masks)
             sub_scores = output.logits.reshape((-1))
