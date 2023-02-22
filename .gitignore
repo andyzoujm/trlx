@@ -151,3 +151,10 @@ examples/experiments/grounded_program_synthesis/dataset
 ckpts/
 
 ray_results/
+
+# Don't store data or models in the repo
+examples/increase_utility/data
+examples/increase_utility/models
+.csv
+.pt 
+.hf
